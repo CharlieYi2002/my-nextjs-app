@@ -1,5 +1,4 @@
-"use client"; // This is a client component
-
+"use client";
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import JobCard from "@/components/JobCard";
@@ -120,7 +119,7 @@ export default function HomePage() {
   return (
     <div className="container mx-auto p-4 bg-white text-black">
       <h1 className="text-2xl font-bold mb-4">Job Listings</h1>
-      
+
       {/* Search Bar and Filter Button */}
       <div className="flex items-center gap-2 mb-4">
         <input

@@ -1,0 +1,16 @@
+I made this originally with some inspiration of a past project (boardgame buddies) which also used cards. I wanted to make the job listing card with 
+important information first (company, location, title) and then as you hover, there will be an animation and on click would expand to show more details.
+The save button was an image I found on Google similar to the save buttons on platforms such as Instagram. After having an inital idea in mind, I designed the 
+basic format of the page on Figma and used that as inspiration as I added more.  I then wrote my initial code in codesandbox since I find it easier to install libraries if I need to and I don't like to installing things I'm not sure will stay in my 
+code on my computer. 
+
+I ran into a couple issues throughout my development. The first of which was the save button. I had issues where the save state wouldn't be unique and you could
+save the same job multiple times. Additionally, the save icon had a border and I wasn't sure how to remove it. I fixed the first issue but I couldn't figure out
+why the image was still rendering the border. I tried various images with different formats (jpeg & png). 
+
+Another issue I encountered was with my location filtering. When I tested it, I tried typing CA and Chicago was filtered in since CA is a substring of Chicago. I had to
+write some logic so that it would only read with starts with rather than contains. 
+
+Additionally, after finishing, I realized my search bar only searches for job title & company but at that point, I had already created the skill filter and the location filter.
+If I were to redo this, I would make the search bar search for anything and then the filtering not be specific to location or skill but rather you could input anything and 
+it would filter through the entire job card. 
