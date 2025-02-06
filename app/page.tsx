@@ -1,101 +1,216 @@
-import Image from "next/image";
+"use client"; // This is a client component
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Papa from "papaparse";
+import JobCard from "@/components/JobCard";
+import { Job } from "@/lib/jobs";
+
+export default function HomePage() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // States for custom filters
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [locationInput, setLocationInput] = useState("");
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      const response = await fetch("/jobs.csv");
+      const csvText = await response.text();
+
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        // Clean data
+        transform: (value: string) => value.replace(/(^")|("$)/g, "").replace(/[\r\n]+/g, " ").trim(),
+        complete: (result) => {
+          // Map data
+          const parsedJobs: Job[] = (result.data as any[]).map((row) => ({
+            title: row["Job Title"],
+            company: row["Company Name"],
+            location: row["Location"],
+            description: row["Job Description"],
+            requirements: row["Requirements"]
+          }));
+          setJobs(parsedJobs);
+        }
+      });
+    };
+
+    // Load saved jobs from local storage 
+    const stored = JSON.parse(localStorage.getItem("savedJobs") || "[]") as Job[];
+    setSavedJobs(stored);
+
+    fetchJobs();
+  }, []);
+
+  // Toggle saved state for a job
+  const handleSaveJob = (job: Job) => {
+    let updatedSavedJobs = [...savedJobs];
+    if (updatedSavedJobs.some((j) => j.title === job.title)) {
+      updatedSavedJobs = updatedSavedJobs.filter((j) => j.title !== job.title);
+    } else {
+      updatedSavedJobs.push(job);
+    }
+    /*
+      console.log(updatedSavedJobs)
+    */
+    setSavedJobs(updatedSavedJobs);
+    localStorage.setItem("savedJobs", JSON.stringify(updatedSavedJobs));
+  };
+
+  // Filtering logic
+  /*
+    Note - make sure locations don't match using substrings (CA should not map to Chicago where ca is in chicago)
+  */
+  const filteredJobs = jobs.filter((job) => {
+    const searchMatch =
+      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.company.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const skillsMatch =
+      selectedSkills.length === 0 ||
+      selectedSkills.some((skill) =>
+        job.requirements.toLowerCase().includes(skill.toLowerCase()) ||
+        job.description.toLowerCase().includes(skill.toLowerCase())
+      );
+
+    const locationMatch =
+      selectedLocations.length === 0 ||
+      selectedLocations.some((loc) =>
+        job.location
+          .toLowerCase()
+          .split(/\s+/)
+          .some((word) => word.startsWith(loc.toLowerCase()))
+      );
+
+    return searchMatch && skillsMatch && locationMatch;
+  });
+
+  // Handlers to add custom filters
+  const addSkillFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (skillInput && !selectedSkills.includes(skillInput)) {
+      setSelectedSkills([...selectedSkills, skillInput]);
+      setSkillInput("");
+    }
+  };
+
+  const addLocationFilter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (locationInput && !selectedLocations.includes(locationInput)) {
+      setSelectedLocations([...selectedLocations, locationInput]);
+      setLocationInput("");
+    }
+  };
+
+  // Handlers to remove filters
+  const removeSkillFilter = (skill: string) => {
+    setSelectedSkills(selectedSkills.filter((s) => s !== skill));
+  };
+
+  const removeLocationFilter = (loc: string) => {
+    setSelectedLocations(selectedLocations.filter((l) => l !== loc));
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <div className="container mx-auto p-4 bg-white text-black">
+      <h1 className="text-2xl font-bold mb-4">Job Listings</h1>
+      
+      {/* Search Bar and Filter Button */}
+      <div className="flex items-center gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Search by job title or company..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-grow p-2 border rounded"
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+        <button
+          className="p-2 border rounded bg-gray-200 hover:bg-gray-300"
+          onClick={() => setShowFilterPanel(!showFilterPanel)}
+        >
+          Filter
+        </button>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Filter Panel */}
+      {showFilterPanel && (
+        <div className="mb-4 p-4 border rounded bg-gray-50">
+          <div className="mb-2">
+            <form onSubmit={addSkillFilter} className="flex gap-2 items-center">
+              <input
+                type="text"
+                placeholder="Add skill filter (e.g., Python)"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                className="p-2 border rounded flex-grow"
+              />
+              <button type="submit" className="p-2 border rounded bg-blue-500 text-white">
+                Add Skill
+              </button>
+            </form>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedSkills.map((skill) => (
+                <span
+                  key={skill}
+                  className="bg-blue-100 text-blue-700 px-2 py-1 rounded cursor-pointer"
+                  onClick={() => removeSkillFilter(skill)}
+                  title="Click to remove filter"
+                >
+                  {skill} &times;
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <form onSubmit={addLocationFilter} className="flex gap-2 items-center">
+              <input
+                type="text"
+                placeholder="Add location filter (e.g., CA for California)"
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                className="p-2 border rounded flex-grow"
+              />
+              <button type="submit" className="p-2 border rounded bg-blue-500 text-white">
+                Add Location
+              </button>
+            </form>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedLocations.map((loc) => (
+                <span
+                  key={loc}
+                  className="bg-green-100 text-green-700 px-2 py-1 rounded cursor-pointer"
+                  onClick={() => removeLocationFilter(loc)}
+                  title="Click to remove filter"
+                >
+                  {loc} &times;
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+
+      {/* Filtered Job Listings */}
+      <div className="flex flex-col gap-4">
+        {filteredJobs.length > 0 ? (
+          filteredJobs.map((job, index) => (
+            <JobCard
+              key={index}
+              job={job}
+              isSaved={savedJobs.some((j) => j.title === job.title)}
+              onSave={handleSaveJob}
+            />
+          ))
+        ) : (
+          <p className="text-gray-500">No jobs found.</p>
+        )}
+      </div>
     </div>
   );
 }
